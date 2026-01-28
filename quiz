@@ -1,0 +1,248 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+
+class User
+{
+    public string Login;
+    public string Password;
+    public string BirthDate;
+}
+
+class Question
+{
+    public string Text;
+    public string[] Options;
+    public string CorrectAnswer;
+}
+
+class Program
+{
+    static string usersFile = "users.txt";
+    static string resultsFile = "results.txt";
+    static List<User> users = new List<User>();
+    static User currentUser;
+
+    static Dictionary<string, List<Question>> categories = new Dictionary<string, List<Question>>();
+
+    static void Main()
+    {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        LoadUsers();
+        LoadQuestions();
+        LoginMenu();
+    }
+
+    static void LoginMenu()
+    {
+        while (true)
+        {
+            Console.WriteLine("\n ВІКТОРИНА ");
+            Console.WriteLine("1. Вхід");
+            Console.WriteLine("2. Реєстрація");
+            Console.WriteLine("0. Вихід");
+
+            string choice = Console.ReadLine();
+
+            if (choice == "1" && Login()) UserMenu();
+            else if (choice == "2") Register();
+            else if (choice == "0") return;
+        }
+    }
+
+    static void Register()
+    {
+        Console.Write("Логін: ");
+        string login = Console.ReadLine();
+
+        foreach (var u in users)
+            if (u.Login == login)
+            {
+                Console.WriteLine("Логін вже існує!");
+                return;
+            }
+
+        Console.Write("Пароль: ");
+        string password = Console.ReadLine();
+
+        Console.Write("Дата народження (рррр-мм-дд): ");
+        string birth = Console.ReadLine();
+
+        users.Add(new User { Login = login, Password = password, BirthDate = birth });
+        SaveUsers();
+        Console.WriteLine("Реєстрація успішна!");
+    }
+
+    static bool Login()
+    {
+        Console.Write("Логін: ");
+        string login = Console.ReadLine();
+
+        Console.Write("Пароль: ");
+        string password = Console.ReadLine();
+
+        foreach (var u in users)
+            if (u.Login == login && u.Password == password)
+            {
+                currentUser = u;
+                return true;
+            }
+
+        Console.WriteLine("Невірні дані!");
+        return false;
+    }
+
+    static void UserMenu()
+    {
+        while (true)
+        {
+            Console.WriteLine("\n МЕНЮ ");
+            Console.WriteLine("1. Почати вікторину");
+            Console.WriteLine("2. Мої результати");
+            Console.WriteLine("0. Вихід");
+
+            string choice = Console.ReadLine();
+
+            if (choice == "1") QuizCategoryMenu();
+            else if (choice == "2") ShowResults();
+            else if (choice == "0") break;
+        }
+    }
+
+    static void QuizCategoryMenu()
+    {
+        Console.WriteLine("\nВиберіть категорію:");
+        Console.WriteLine("1. Історія");
+        Console.WriteLine("2. Географія");
+        Console.WriteLine("3. Спорт");
+        Console.WriteLine("4. Змішана (20 питань)");
+
+        string choice = Console.ReadLine();
+
+        if (choice == "1") StartQuiz("Історія", 7);
+        else if (choice == "2") StartQuiz("Географія", 7);
+        else if (choice == "3") StartQuiz("Спорт", 7);
+        else if (choice == "4") StartMixedQuiz(20);
+    }
+
+    static void StartQuiz(string category, int numQuestions)
+    {
+        if (!categories.ContainsKey(category)) return;
+
+        var questions = categories[category];
+        int score = 0;
+
+        for (int i = 0; i < numQuestions && i < questions.Count; i++)
+        {
+            var q = questions[i];
+            Console.WriteLine($"\nПитання {i + 1}: {q.Text}");
+            for (int j = 0; j < q.Options.Length; j++)
+                Console.WriteLine($"{j + 1}. {q.Options[j]}");
+
+            string answer = Console.ReadLine();
+            if (answer == q.CorrectAnswer) score++;
+        }
+
+        Console.WriteLine($"\nРезультат: {score}/{numQuestions}");
+        File.AppendAllText(resultsFile, $"{currentUser.Login};{category};{score}/{numQuestions}\n");
+    }
+
+    static void StartMixedQuiz(int totalQuestions)
+    {
+        List<Question> allQuestions = new List<Question>();
+        foreach (var list in categories.Values) allQuestions.AddRange(list);
+
+        Random rnd = new Random();
+        for (int i = allQuestions.Count - 1; i > 0; i--)
+        {
+            int j = rnd.Next(i + 1);
+            var temp = allQuestions[i];
+            allQuestions[i] = allQuestions[j];
+            allQuestions[j] = temp;
+        }
+
+        int score = 0;
+        for (int i = 0; i < totalQuestions && i < allQuestions.Count; i++)
+        {
+            var q = allQuestions[i];
+            Console.WriteLine($"\nПитання {i + 1}: {q.Text}");
+            for (int j = 0; j < q.Options.Length; j++)
+                Console.WriteLine($"{j + 1}. {q.Options[j]}");
+
+            string answer = Console.ReadLine();
+            if (answer == q.CorrectAnswer) score++;
+        }
+
+        Console.WriteLine($"\nРезультат: {score}/{totalQuestions}");
+        File.AppendAllText(resultsFile, $"{currentUser.Login};Змішана;{score}/{totalQuestions}\n");
+    }
+
+    static void ShowResults()
+    {
+        if (!File.Exists(resultsFile)) return;
+
+        string[] lines = File.ReadAllLines(resultsFile);
+        Console.WriteLine("\n Ваші результати ");
+        foreach (string line in lines)
+        {
+            string[] parts = line.Split(';'); 
+            if (parts[0] == currentUser.Login)
+                Console.WriteLine($"{parts[1]}: {parts[2]}");
+        }
+    }
+
+    static void SaveUsers()
+    {
+        using (StreamWriter sw = new StreamWriter(usersFile))
+            foreach (var u in users)
+                sw.WriteLine($"{u.Login};{u.Password};{u.BirthDate}");
+    }
+
+    static void LoadUsers()
+    {
+        if (!File.Exists(usersFile)) return;
+
+        string[] lines = File.ReadAllLines(usersFile);
+        foreach (string line in lines)
+        {
+            string[] parts = line.Split(';');
+            users.Add(new User { Login = parts[0], Password = parts[1], BirthDate = parts[2] });
+        }
+    }
+
+    static void LoadQuestions()
+    {
+        categories["Історія"] = new List<Question>
+        {
+            new Question { Text="Хто відкрив Америку?", Options=new[]{"Колумб","Я","Васко да Гама"}, CorrectAnswer="1" },
+            new Question { Text="Коли почалася Друга світова війна?", Options=new[]{"1935","1939","1941"}, CorrectAnswer="2" },
+            new Question { Text="Хто був першим президентом США?", Options=new[]{"Джордж Вашингтон","Авраам Лінкольн","Джон Кеннеді"}, CorrectAnswer="1" },
+            new Question { Text="Столиця Київської Русі?", Options=new[]{"Київ","Чернігів","Луцьк"}, CorrectAnswer="1" },
+            new Question { Text="Рік створення ООН?", Options=new[]{"1945","1939","1950"}, CorrectAnswer="1" },
+            new Question { Text="Хто очолював Францію під час Наполеонівських воєн?", Options=new[]{"Наполеон","Людовік XIV","Шарль де Голль"}, CorrectAnswer="1" },
+            new Question { Text="Яка держава була союзником України у війні 1917-1921?", Options=new[]{"Німеччина","Росія","Франція"}, CorrectAnswer="3" }
+        };
+
+        categories["Географія"] = new List<Question>
+        {
+            new Question { Text="Столиця Франції?", Options=new[]{"Берлін","Париж","Рим"}, CorrectAnswer="2" },
+            new Question { Text="Найдовша річка світу?", Options=new[]{"Ніл","Амазонка","Міссісіпі"}, CorrectAnswer="2" },
+            new Question { Text="Яка країна найбільша за площею?", Options=new[]{"Канада","США","Майбутня УкрвЇна"}, CorrectAnswer="3" },
+            new Question { Text="Столиця Японії?", Options=new[]{"Пекін","Токіо","Сеул"}, CorrectAnswer="2" },
+            new Question { Text="Найвища гора світу?", Options=new[]{"Еверест","Кіліманджаро","Монблан"}, CorrectAnswer="1" },
+            new Question { Text="Який океан найбільший?", Options=new[]{"Атлантичний","Індійський","Тихий"}, CorrectAnswer="3" },
+            new Question { Text="Яка країна острівна держава?", Options=new[]{"Італія","Велика Британія","Німеччина"}, CorrectAnswer="2" }
+        };
+
+        categories["Спорт"] = new List<Question>
+        {
+            new Question { Text="Скільки гравців у футболі в команді?", Options=new[]{"9","11","12"}, CorrectAnswer="2" },
+            new Question { Text="Який вид спорту грають з шайбою?", Options=new[]{"Хокей","Баскетбол","Волейбол"}, CorrectAnswer="1" },
+            new Question { Text="Олімпіади проводяться через скільки років?", Options=new[]{"2","4","5"}, CorrectAnswer="2" },
+            new Question { Text="Стрибки у висоту — це вид?", Options=new[]{"Легка атлетика","Гімнастика","Бокс"}, CorrectAnswer="1" },
+            new Question { Text="Гравець тенісу називається?", Options=new[]{"Тенісист","Футболіст","Баскетболіст"}, CorrectAnswer="1" },
+            new Question { Text="Скільки гравців у баскетбольній команді на майданчику?", Options=new[]{"5","6","7"}, CorrectAnswer="1" },
+            new Question { Text="Кого вважають легендою боксу?", Options=new[]{"Мохаммед Алі","Леброн Джеймс","Мессі"}, CorrectAnswer="1" }
+        };
+    }
+}
