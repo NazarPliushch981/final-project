@@ -1,0 +1,182 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+
+class Program
+{
+    static string fileName = "dictionary.txt";
+    static string dictionaryType = "";
+
+    static Dictionary<string, List<string>> words = new Dictionary<string, List<string>>();
+
+    static void Main()
+    {
+        Console.OutputEncoding = System.Text.Encoding.UTF8; // підтримка українських символів
+        Load();
+        MainMenu();
+        Save();
+    }
+
+    static void MainMenu()
+    {
+        while (true)
+        {
+            Console.WriteLine("\n МЕНЮ ");
+            Console.WriteLine("1. Створити словник");
+            Console.WriteLine("2. Робота зі словами");
+            Console.WriteLine("0. Вихід");
+
+            string choice = Console.ReadLine();
+
+            if (choice == "1") CreateDictionary();
+            else if (choice == "2") WordsMenu();
+            else if (choice == "0") break;
+        }
+    }
+
+    static void WordsMenu()
+    {
+        while (true)
+        {
+            Console.WriteLine("\n СЛОВА ");
+            Console.WriteLine("1. Додати слово");
+            Console.WriteLine("2. Замінити переклад");
+            Console.WriteLine("3. Видалити переклад");
+            Console.WriteLine("4. Видалити слово");
+            Console.WriteLine("5. Пошук перекладу");
+            Console.WriteLine("6. Експорт слова у файл");
+            Console.WriteLine("0. Назад");
+
+            string choice = Console.ReadLine();
+
+            if (choice == "1") AddWord();
+            else if (choice == "2") ReplaceTranslation();
+            else if (choice == "3") RemoveTranslation();
+            else if (choice == "4") RemoveWord();
+            else if (choice == "5") FindWord();
+            else if (choice == "6") ExportWord();
+            else if (choice == "0") break;
+        }
+    }
+
+    static void CreateDictionary()
+    {
+        Console.Write("Введіть тип словника: ");
+        dictionaryType = Console.ReadLine();
+        words.Clear();
+        Console.WriteLine("Словник створено.");
+    }
+
+    static void AddWord()
+    {
+        Console.Write("Слово: ");
+        string word = Console.ReadLine();
+
+        Console.Write("Переклад: ");
+        string translation = Console.ReadLine();
+
+        if (!words.ContainsKey(word))
+            words[word] = new List<string>();
+
+        words[word].Add(translation);
+        Console.WriteLine("Додано.");
+    }
+
+    static void ReplaceTranslation()
+    {
+        Console.Write("Слово: ");
+        string word = Console.ReadLine();
+
+        if (!words.ContainsKey(word)) return;
+
+        Console.Write("Старий переклад: ");
+        string oldT = Console.ReadLine();
+
+        Console.Write("Новий переклад: ");
+        string newT = Console.ReadLine();
+
+        int index = words[word].IndexOf(oldT);
+        if (index >= 0)
+        {
+            words[word][index] = newT;
+            Console.WriteLine("Замінено.");
+        }
+    }
+
+    static void RemoveTranslation()
+    {
+        Console.Write("Слово: ");
+        string word = Console.ReadLine();
+
+        if (!words.ContainsKey(word)) return;
+        if (words[word].Count == 1)
+        {
+            Console.WriteLine("Не можна видалити переклад!");
+            return;
+        }
+
+        Console.Write("Переклад для видалення: ");
+        string t = Console.ReadLine();
+
+        words[word].Remove(t);
+        Console.WriteLine("Переклад видалено.");
+    }
+
+    static void RemoveWord()
+    {
+        Console.Write("Слово для видалення: ");
+        string word = Console.ReadLine();
+
+        words.Remove(word);
+        Console.WriteLine("Слово видалено.");
+    }
+
+    static void FindWord()
+    {
+        Console.Write("Слово: ");
+        string word = Console.ReadLine();
+
+        if (words.ContainsKey(word))
+            foreach (string t in words[word])
+                Console.WriteLine("- " + t);
+        else
+            Console.WriteLine("Не знайдено.");
+    }
+
+    static void ExportWord()
+    {
+        Console.Write("Слово: ");
+        string word = Console.ReadLine();
+
+        if (!words.ContainsKey(word)) return;
+
+        File.WriteAllLines(word + "_export.txt", words[word]);
+        Console.WriteLine("Експорт виконано.");
+    }
+
+    static void Save()
+    {
+        using (StreamWriter sw = new StreamWriter(fileName))
+        {
+            sw.WriteLine(dictionaryType);
+            foreach (var pair in words)
+                sw.WriteLine(pair.Key + ":" + string.Join(",", pair.Value));
+        }
+    }
+
+    static void Load()
+    {
+        if (!File.Exists(fileName)) return;
+
+        string[] lines = File.ReadAllLines(fileName);
+        if (lines.Length == 0) return;
+
+        dictionaryType = lines[0];
+
+        for (int i = 1; i < lines.Length; i++)
+        {
+            string[] parts = lines[i].Split(':');
+            words[parts[0]] = new List<string>(parts[1].Split(','));
+        }
+    }
+}
